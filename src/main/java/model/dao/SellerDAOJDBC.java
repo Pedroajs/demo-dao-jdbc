@@ -7,6 +7,7 @@ import org.example.db.DB;
 import org.example.db.DbException;
 
 import java.sql.*;
+import java.util.*;
 
 public class SellerDAOJDBC implements SellerDAO {
     private Connection connection;
@@ -50,6 +51,43 @@ public class SellerDAOJDBC implements SellerDAO {
     }
 
     @Override
+    public List<Seller> findByDepartment(Department department){
+        PreparedStatement preparedStatement = null;
+        ResultSet resultSet = null;
+
+        try {
+            preparedStatement = connection.prepareStatement("" +
+                    "SELECT seller.*,department.Name as DepName" +
+                    " FROM seller INNER JOIN department" +
+                    " ON seller.DepartmentId = department.Id" +
+                    " WHERE DepartmentId = ?" +
+                    " ORDER BY Name");
+
+            preparedStatement.setInt(1, department.getId());
+            resultSet = preparedStatement.executeQuery();
+            List<Seller> list = new ArrayList<>();
+            Map<Integer, Department> map = new HashMap<>();
+
+            while (resultSet.next()){
+                Department dep = map.get(resultSet.getInt("DepartmentId"));
+                if(dep == null){
+                    dep = instantiateDepartment(resultSet);
+                    map.put(resultSet.getInt("DepartmentId"), dep);
+                }
+                Seller sel = instantiateSeller(resultSet, dep);
+                list.add(sel);
+            }
+            return list;
+        } catch (SQLException exception){
+            exception.printStackTrace();
+           throw new DbException(exception.getMessage());
+        } finally {
+          DB.closeStatement(preparedStatement);
+          DB.closeResultSet(resultSet);
+        }
+    }
+
+    @Override
     public Seller findById(Integer id) {
         PreparedStatement preparedStatement = null;
         ResultSet resultSet = null;
@@ -76,6 +114,11 @@ public class SellerDAOJDBC implements SellerDAO {
         }
     }
 
+    @Override
+    public List<Seller> findAll() {
+        return null;
+    }
+
     private Seller instantiateSeller(ResultSet resultSet, Department department) throws SQLException {
        Seller seller = new Seller();
         seller.setId(resultSet.getInt("Id"));
@@ -92,10 +135,5 @@ public class SellerDAOJDBC implements SellerDAO {
         dep.setId(resultSet.getInt("DepartmentId"));
         dep.setName(resultSet.getString("DepName"));
         return dep;
-    }
-
-    @Override
-    public Seller findById() {
-        return null;
     }
 }
